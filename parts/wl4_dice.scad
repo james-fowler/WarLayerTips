@@ -7,6 +7,7 @@ inside_max_width = post_2x_on_center - max_wall_width;
 
 function dt_t1( i, j ) = [ i, j, i+3];
 function dt_t2( i, j ) = [  i+3, j, j+3 ];
+
 module depth_tri( a, b, c, delta ) {
     //echo( "beveled_cube ", b1, b2, t1, t2 );
     points = [
@@ -36,6 +37,83 @@ module depth_tri( a, b, c, delta ) {
               
                   
             ] , convexity = 3 );
+}
+
+function distance(a, b) = sqrt( (a[0] - b[0])*(a[0] - b[0]) +
+                                (a[1] - b[1])*(a[1] - b[1]) +
+                                (a[2] - b[2])*(a[2] - b[2]) );
+
+
+function rf( a,b,v,d,d2 ) = (v[d2] == 0) ? 0 : atan((v[d]/v[d2]));
+
+module bar( a, b, size ) {
+    ///vector = [ a.x-b.x, a.y - b.y, a.z - b.z ] ;
+    vector = [ b.x-a.x, b.y - a.y, b.z - a.z ] ;
+    length = norm(vector);
+    cube_bounds =  [size,size, length ] ;
+    
+    ang_b = acos(vector.z/length); // inclination angle
+    ang_c = atan2(vector.y,vector.x);     // azimuthal angle
+
+        //rotate([0, b, c]) 
+    
+    rv = [
+                    0, // rf( a,b,vector,1,0 ) ,
+                    ang_b, //rf( a,b,vector,2 ,0) ,
+                    ang_c, // brf( a,b,vector,0 ,1) , 
+        ] ;
+    //echo( "bar( ", a, b, size , " ) v= ", vector, ", cb=", cube_bounds, ", rv=", rv ) ;
+
+   
+    translate( a ) {
+        //sphere( r=size );
+        rotate( rv )
+            translate( [-size/2, -size/2, 0] )
+                cube( cube_bounds );
+    }
+}
+function vec_double( a, b ) = [
+                        a.x + 2* (b.x-a.x),
+                        a.y + 2* (b.y-a.y),
+                        a.z + 2* (b.z-a.z) ];
+
+module depth_tri_inner( a, b, c, size , splits, frame = true ) {
+    if( frame ) {
+        bar(a,b,size);
+        bar(b,c,size);
+        bar(c,a,size);
+    }
+        
+    vector = [ b.x-a.x, b.y - a.y, b.z - a.z ] ;
+    if( splits> 0 ) {
+        center = [ 
+                                        (a.x+b.x+c.x)/3,
+                                        (a.y+b.y+c.y)/3,
+                                        (a.z+b.z+c.z)/3,
+                ];
+        sm1 = splits-1;
+        s2 = size * 0.85;
+        if( 0/*splits %2 == 1 */) {
+            depth_tri_inner( a, b,  vec_double(b,center), s2, sm1 );
+            depth_tri_inner( b,  c, vec_double(b,center), s2, sm1 );
+        } 
+        else {
+            bar( a, center, s2 );
+            bar( b, center, s2 );
+            bar( c, center, s2 );
+            depth_tri_inner( a, b, center, s2, sm1, frame = false );
+            depth_tri_inner(  b, c,  center, s2, sm1, frame = false );
+            depth_tri_inner(   c, a,   center, s2, sm1, frame = false );
+        }
+    }     
+}
+
+module depth_tri_grid( a, b, c,  delta ) {
+    size = max( [for( i = [0:3] ) abs(delta[i])] );
+       
+    echo( "depth_tri( ", a, b, c, delta, " ) size= ", size ) ;
+    
+    depth_tri_inner( a, b, c, size, 4 );
 }
 
 module depth_quad( a, b, c, d, delta ) {
@@ -74,7 +152,7 @@ module TopFrameQuarter(dstep)  {
     himw = inside_max_width / 2;
     frame_width = 7;
     frame_corner_offset = 3;
-    c_wall_width = 2;
+    c_wall_width = 1.7;
     
     qheight = (wall_height - corner_support_depth) / 4 ;
     rim_outer = himw;
@@ -192,10 +270,10 @@ module TopFrameQuarter(dstep)  {
                    depth_quad (  
                             //[ rim_inner, rim_inner, d+qheight ],
                             //[ rim_inner, -rim_inner, d+qheight],
-                            [ rim_inner, rim_inner,  d ],
+                            [ rim_inner, rim_inner,  d-c_wall_width ],
                             [ rim_inner, rim_inner,  0 ],
                             [ rim_inner, -rim_inner,  0 ],
-                            [ rim_inner, -rim_inner, d+qheight],
+                            [ rim_inner, -rim_inner, d+qheight-c_wall_width ],
                                     [ -c_wall_width, 0, 0 ]
                                 );            
                }           
@@ -270,7 +348,18 @@ module TopFrameBorder()   {
 }
 
 if( 0 ) {
-    TopFrameQuarters();
+    //a = [1,1,0];
+    //b = [12,20,24];
+    //c =  [77,24,14];
+    a = [13,1,1];
+    b = [1,44,31];
+    c =  [44,7,1];
+    
+   depth =  [0,0,-5] ;
+    depth_tri_poly(  a, b, c, depth );
+    translate( [0, 60, 0 ] )
+        depth_tri( a, b, c, depth  );
+    //TopFrameQuarters();
 } else {
      // for stl 
     rotate( [180,0,0] ) TopFrame() ;
