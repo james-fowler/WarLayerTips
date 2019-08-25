@@ -1,8 +1,8 @@
-wall_height = 76;               // height of support post
+wall_height = 77;               // height of support post
 post_2x_on_center = 102;       // horizontal distance from center to center of posts along 2X walls
 corner_support_depth = 3.1;  // from top of roof support ledge to top of post
 
-max_wall_width = 6.5;
+max_wall_width = 7.5;
 inside_max_width = post_2x_on_center - max_wall_width;
 
 function dt_t1( i, j ) = [ i, j, i+3];
@@ -148,11 +148,66 @@ module depth_rect( a, b, delta ) {
                 );
 }
 
+module  mesh_wall( rim_inner,  d, qheight, c_wall_width )  {
+    z_start = 0 ;
+    z_end = d+qheight-c_wall_width ;
+    z_span = z_start - z_end ;
+    z_interval = 12.3;
+    z_steps = floor( abs(z_span / z_interval)+1);
+    mw_width = c_wall_width * 1.4;
+    
+    //echo( "mesh_wall : ", rim_inner,  d, qheight, " cww:", c_wall_width , z_start, z_end,  z_span, z_steps );
+    for( z_step = [ 0 : z_steps+1 ]  ) {
+              current_z = z_step * -z_interval;  
+            
+            //echo( "  step:", z_step, " ,  current_z:", current_z );
+            depth_quad (  
+                [ rim_inner, rim_inner,  current_z+mw_width ],
+                [ rim_inner, rim_inner,  current_z ],
+
+                [  rim_inner, -rim_inner,  current_z ],
+                [ rim_inner, -rim_inner, current_z+mw_width],
+                    [- c_wall_width, 0, 0]
+                );      
+    }      
+
+    // h_steps = floor( abs((rim_inner*2) / h_interval)+1);
+    h_steps = 12;
+    h_interval = (rim_inner*2) / h_steps ;
+    
+    h_z = -z_interval * (z_steps+1);
+    for( h_step = [ -1 : h_steps+1 ]  ) {
+              current_h = -rim_inner 
+                                            +c_wall_width 
+                                            + h_step * h_interval;  
+            
+            //echo( "  step:", z_step, " ,  current_z:", current_z );
+            depth_quad (  
+                [ rim_inner, current_h,  h_z ],
+                [ rim_inner, current_h,  0],
+
+                [  rim_inner, current_h-mw_width,  0],
+                [ rim_inner, current_h-mw_width, h_z],
+                    [- c_wall_width, 0, 0]
+                );      
+    }      
+
+/*
+       depth_quad (  
+            [ rim_inner, rim_inner,  d-c_wall_width ],
+            [ rim_inner, rim_inner,  0 ],
+            [ rim_inner, -rim_inner,  0 ],
+            [ rim_inner, -rim_inner, d+qheight-c_wall_width ],
+                    [ -c_wall_width, 0, 0 ]
+                );            
+*/
+}
+
 module TopFrameQuarter(dstep)  {
     himw = inside_max_width / 2;
     frame_width = 7;
     frame_corner_offset = 3;
-    c_wall_width = 1.7;
+    c_wall_width = 1.5;
     
     qheight = (wall_height - corner_support_depth) / 4 ;
     rim_outer = himw;
@@ -267,7 +322,10 @@ module TopFrameQuarter(dstep)  {
                                 );        
                 }
                if(1) { // outer side wall
-                   depth_quad (  
+                   if(1) {
+                       mesh_wall( rim_inner,  d, qheight, c_wall_width );
+                   } else {
+                       depth_quad (  
                             //[ rim_inner, rim_inner, d+qheight ],
                             //[ rim_inner, -rim_inner, d+qheight],
                             [ rim_inner, rim_inner,  d-c_wall_width ],
@@ -276,6 +334,7 @@ module TopFrameQuarter(dstep)  {
                             [ rim_inner, -rim_inner, d+qheight-c_wall_width ],
                                     [ -c_wall_width, 0, 0 ]
                                 );            
+                   }
                }           
 
             }
@@ -320,15 +379,17 @@ module TopFrameQuarters()   {
 module max_box() {
                 lower_max_width =  inside_max_width -14;
             union() {
-                translate( [ -lower_max_width/2, -lower_max_width/2, -(wall_height-corner_support_depth)] )
-                cube( [ lower_max_width, lower_max_width, wall_height-corner_support_depth  ] );
+                translate( [ -lower_max_width/2, -lower_max_width/2, -(wall_height)] )
+                cube( [ lower_max_width, lower_max_width, wall_height] );
                translate( [ -post_2x_on_center/2, -post_2x_on_center/2, -corner_support_depth] )
                     cube( [ post_2x_on_center, post_2x_on_center, corner_support_depth  ] );
                 }
 }
 
 module TopFrame()  {
-    translate( [0,0,wall_height-corner_support_depth] )
+    translate( [0,0,wall_height
+                        //-corner_support_depth
+    ] )
     difference() 
     {
         intersection()
@@ -362,6 +423,8 @@ if( 0 ) {
     //TopFrameQuarters();
 } else {
      // for stl 
-    rotate( [180,0,0] ) TopFrame() ;
+    rotate( [180,0,0] )
+    TopFrame() ;
+   // TopFrameBorder()  ;
 }
 
