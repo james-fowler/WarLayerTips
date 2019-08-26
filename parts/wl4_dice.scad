@@ -150,7 +150,8 @@ module depth_rect( a, b, delta ) {
 
 module  mesh_wall( rim_inner,  d, qheight, c_wall_width )  {
     z_start = 0 ;
-    z_end = d+qheight-c_wall_width ;
+    // z_end = d+qheight-c_wall_width ; // just enough for each level - but allows dice to fly out windows
+    z_end = wall_height;
     z_span = z_start - z_end ;
     z_interval = 12.3;
     z_steps = floor( abs(z_span / z_interval)+1);
